@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signedIn(){return request.auth != null;}
+  function admin(){return signedIn() && request.auth.token.role == 'admin';}
+  function official(){return signedIn() && (request.auth.token.role == 'official' || admin());}
+  function own(id){return signedIn() && request.auth.uid == id;}
+  function sameBarangay(id){return official() && request.auth.token.barangayId == id;}
+  match /users/{uid} {
+   allow read: if own(uid) || admin();
+   allow create: if own(uid) && request.resource.data.role == 'citizen' && request.resource.data.keys().hasOnly(['displayName','barangayId','role','createdAt']);
+   allow update: if own(uid) && request.resource.data.role == resource.data.role && request.resource.data.barangayId == resource.data.barangayId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
+   allow update, delete: if admin();
+   match /notifications/{id}{allow read,update: if own(uid); allow create: if official() || admin();}
+  }
+  match /userPrivateProfiles/{uid}{allow read,create,update: if own(uid) || admin();}
+  match /barangays/{id}{allow read: if signedIn(); allow write: if admin();}
+  match /categories/{id}{allow read: if signedIn(); allow write: if admin();}
+  match /reports/{id}{
+   allow read: if signedIn() && (resource.data.visibility == 'public' || own(resource.data.userId) || sameBarangay(resource.data.barangayId) || admin());
+   allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'submitted' && request.resource.data.priority == 'normal' && request.resource.data.confirmationCount == 0 && request.resource.data.keys().hasAll(['userId','barangayId','title','description','status','priority','createdAt']);
+   allow update: if official() && (sameBarangay(resource.data.barangayId) || admin());
+   allow delete: if admin();
+   match /confirmations/{uid}{allow read: if signedIn(); allow create,delete: if own(uid);}
+   match /updates/{updateId}{allow read: if signedIn() && (resource.data.visibility == 'public' || official() || admin());allow create: if official() && (sameBarangay(get(/databases/$(database)/documents/reports/$(id)).data.barangayId) || admin());}
+  }
+  match /announcements/{id}{allow read: if signedIn() && resource.data.active == true;allow create,update,delete: if official() && (sameBarangay(resource.data.barangayId) || admin());}
+ }
+}

@@ -1,0 +1,5 @@
+rules_version = '2'; service firebase.storage { match /b/{bucket}/o {
+ function signedIn(){return request.auth != null;} function official(){return signedIn() && (request.auth.token.role == 'official' || request.auth.token.role == 'admin');}
+ match /reports/{reportId}/before/{file}{allow read: if signedIn();allow write: if signedIn() && request.resource.size < 8 * 1024 * 1024 && request.resource.contentType.matches('image/.*');}
+ match /reports/{reportId}/resolution/{file}{allow read: if signedIn();allow write: if official() && request.resource.size < 8 * 1024 * 1024 && request.resource.contentType.matches('image/.*');}
+ }}
