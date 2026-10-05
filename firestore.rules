@@ -18,7 +18,8 @@ service cloud.firestore {
   match /categories/{id}{allow read: if signedIn(); allow write: if admin();}
   match /reports/{id}{
    allow read: if signedIn() && (resource.data.visibility == 'public' || own(resource.data.userId) || sameBarangay(resource.data.barangayId) || admin());
-   allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'submitted' && request.resource.data.priority == 'normal' && request.resource.data.confirmationCount == 0 && request.resource.data.keys().hasAll(['userId','barangayId','title','description','status','priority','createdAt']);
+   // Created by the trusted backend after authentication and image upload.
+   allow create: if false;
    allow update: if official() && (sameBarangay(resource.data.barangayId) || admin());
    allow delete: if admin();
    match /confirmations/{uid}{allow read: if signedIn(); allow create,delete: if own(uid);}
